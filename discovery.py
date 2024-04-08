@@ -1,5 +1,7 @@
 import socket
 import threading
+import sqlite3
+import os
 
 class DiscoveryServer:
     def __init__(self, host, port):
@@ -7,16 +9,22 @@ class DiscoveryServer:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((host, port))
         self.server_socket.listen()
+        
+    def insert_user(self, username, port):
+        with sqlite3.connect('p2p_messaging.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO users (username, port) VALUES (?, ?)", (username, port))
+            conn.commit()
 
-              
     def handle_client(self, client_socket, client_address):
         try:
             while True:
                 message = client_socket.recv(1024).decode('utf-8')
                 if message.startswith('REGISTER'):
-                    _, username, listen_port = message.split()  # Split the message to extract username and listen_port
-                    self.active_clients[username] = (client_address[0], int(listen_port))  # Store client's IP and specified listening port
-                    print(f"{username} registered with address {self.active_clients[username]}.")                   
+                    _, username, listen_port = message.split()
+                    self.active_clients[username] = (client_address[0], int(listen_port))
+                    self.insert_user(username, listen_port)  # Store user in the database
+                    print(f"{username} registered with address {self.active_clients[username]}.")
                 elif message.startswith('LOOKUP'):
                     username_lookup = message.split(' ')[1]
                     client_info = self.active_clients.get(username_lookup)

@@ -1,6 +1,8 @@
 import socket
 import threading
 import time
+import sqlite3
+import os
 
 class Client:
     def __init__(self, discovery_server_ip, discovery_server_port, my_ip, my_port):
@@ -27,29 +29,42 @@ class Client:
         while self.keep_running:
             conn, addr = self.client_socket.accept()
             threading.Thread(target=self.handle_client, args=(conn, addr)).start()
-
+            
+    def save_message(self, sender_username, receiver_username, content):
+        with sqlite3.connect('p2p_messaging.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO messages (sender_username, receiver_username, content) VALUES (?, ?, ?)",
+                        (sender_username, receiver_username, content))
+            conn.commit()
+                
     def handle_client(self, conn, addr):
         with conn:
             while True:
                 data = conn.recv(1024)
                 if not data:
                     break
-                # Assuming the message format is "username: message"
-                message_content = data.decode('utf-8')
-                print(f"Received message from {message_content}")
+                decoded_message = data.decode('utf-8')
+                sender_username, message_content = decoded_message.split(':', 1)
+                print(f"Received message from {sender_username}: {message_content}")
+                self.save_message(sender_username, self.username, message_content)
 
     def send_message(self, target_ip, target_port, message):
-        # Include the username in the message
-        full_message = f"{self.username}: {message}"
+        full_message = f"{self.username}:{message}"
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((target_ip, int(target_port)))
             s.send(full_message.encode('utf-8'))
             
+    def get_message_history_for_user(self, username):
+        with sqlite3.connect('p2p_messaging.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute('''SELECT sender_username, receiver_username, content, timestamp
+                            FROM messages
+                            WHERE sender_username = ? OR receiver_username = ?
+                            ORDER BY timestamp''', (username, username))
+            return cursor.fetchall()
+            
             
     def lookup_user(self, username):
-        """
-        Request the IP and port for a given username from the discovery server.
-        """
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect(self.server_address)
@@ -89,7 +104,6 @@ class Client:
                 self.keep_running = False
                 self.client_socket.close()
                 break
-
 
 if __name__ == '__main__':
     my_port = int(input("Enter your client's listening port: "))

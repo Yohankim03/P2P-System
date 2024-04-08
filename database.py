@@ -55,15 +55,15 @@ def get_message_history_for_user(username):
 # Main Function to Run Some Tests
 def main():
     initialize_database()
-    insert_user('alice')
-    insert_user('bob')
+    # insert_user('alice')
+    # insert_user('bob')
 
-    save_message('alice', 'bob', 'Hello, Bob!')
-    save_message('bob', 'alice', 'Hi, Alice!')
+    # save_message('alice', 'bob', 'Hello, Bob!')
+    # save_message('bob', 'alice', 'Hi, Alice!')
 
-    history = get_message_history_for_user('alice')
-    for message in history:
-        print(message)
+    # history = get_message_history_for_user('alice')
+    # for message in history:
+    #     print(message)
 
 if __name__ == '__main__':
     main()
